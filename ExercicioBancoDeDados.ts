@@ -1,55 +1,66 @@
-//Importa as bibliotecas necessárias
-import { Pool } from 'pg';
-import * as readlineSync from 'readline-sync';
+// --- 1. Importação das Bibliotecas ---
 
-// --- 1. Configuração da Conexão com o Banco de Dados ---
-// Usamos os dados da sua imagem do Docker
-// Lembre-se que este é um exemplo de aulas - NUNCA DEIXE O USUÁRIO E SENHA CHUMBADO NO CODIGO NO MUNDO REAL
+// Driver para conectar ao PostgreSQL
+import { Pool } from 'pg'; 
+// Biblioteca para ler a entrada do usuário no terminal.
+// A importação foi corrigida para funcionar com o "type": "module" no package.json.
+import readlineSync from 'readline-sync'; 
+
+// --- 2. Configuração da Conexão com o Banco de Dados ---
+// As informações são baseadas na sua imagem do Docker.
+// Lembre-se: este é um exemplo de aula - NUNCA deixe o usuário e senha fixos no código em um projeto real.
 const dbConfig = {
     user: 'aluno',
-    host: 'localhost', // Como o Docker está expondo a porta, usamos localhost
+    host: 'localhost', // O Docker expõe a porta do container para a sua máquina (localhost)
     database: 'db_profedu',
     password: '102030',
-    port: 5432,       // A porta padrão do PostgreSQL
+    port: 5432,       // Porta padrão do PostgreSQL
 };
 
-// Cria um "pool" de conexões
+// O "Pool" gerencia múltiplas conexões para otimizar a performance.
 const pool = new Pool(dbConfig);
 
-// --- 2. Função Principal para Executar a Lógica ---
+// --- 3. Função Principal para Executar a Lógica ---
+// Usamos 'async' para poder usar 'await', que simplifica o código assíncrono.
 async function inserirDados() {
     console.log("--- Cadastro de Novo Aluno ---");
 
-    // Coleta os dados do usuário via terminal
+    // Coleta os dados do usuário via terminal de forma síncrona (espera pela resposta)
     const nome = readlineSync.question('Digite o nome: ');
     const idade = readlineSync.questionInt('Digite a idade: '); // questionInt já converte para número
     const dataNasc = readlineSync.question('Digite a data de nascimento (formato AAAA-MM-DD): ');
 
-    // Validação simples para garantir que os campos não estão vazios
+    // Validação simples para garantir que o usuário não deixou campos em branco
     if (!nome || !idade || !dataNasc) {
-        console.error("Erro: Todos os campos são obrigatórios!");
-        return; // Encerra a função se algum campo estiver vazio
+        console.error("Erro: Todos os campos são obrigatórios! Operação cancelada.");
+        // Encerra a função se algum campo estiver vazio.
+        // Precisamos fechar o pool de conexões aqui também para o programa terminar.
+        await pool.end();
+        return; 
     }
 
     try {
-        // --- 3. Conecta e Insere os Dados ---
+        // --- 4. Conexão e Inserção dos Dados ---
         console.log("\nConectando ao banco de dados...");
-        const client = await pool.connect(); // Pega uma conexão do pool
+        const client = await pool.connect(); // Pega uma conexão disponível do pool
 
-        // O SQL para inserir os dados.
-        // Usamos $1, $2, $3 para evitar SQL Injection. É a forma segura!
+        console.log("Conexão bem-sucedida! Inserindo dados...");
+        
+        // Comando SQL para inserir os dados.
+        // NOTA: Se você criou a coluna com hífen ("data-nasc"), troque data_nasc por "data-nasc" abaixo.
+        // Usar $1, $2, $3 é a prática mais segura para passar valores para uma query (evita SQL Injection).
         const insertQuery = `
             INSERT INTO public.pessoas (nome, idade, data_nasc)
             VALUES ($1, $2, $3)
         `;
 
-        // O array de valores que substituirá $1, $2, $3
+        // Array de valores que substituirão $1, $2, $3 na ordem correta
         const values = [nome, idade, dataNasc];
 
-        // Executa a query
+        // Executa a query no banco de dados
         await client.query(insertQuery, values);
 
-        // Libera a conexão de volta para o pool
+        // Libera a conexão de volta para o pool para que possa ser reutilizada
         client.release();
 
         console.log("-----------------------------------------");
@@ -58,14 +69,17 @@ async function inserirDados() {
         console.log("-----------------------------------------");
 
     } catch (error) {
-        console.error("Ocorreu um erro ao inserir os dados:", error);
+        // Captura qualquer erro que possa ocorrer durante a conexão ou inserção
+        console.error("Ocorreu um erro ao interagir com o banco de dados:", error);
     } finally {
-        // --- 4. Encerra a Conexão ---
-        // Garante que o pool de conexões será fechado ao final
+        // --- 5. Encerramento da Conexão ---
+        // O bloco 'finally' sempre será executado, com ou sem erro.
+        // Isso garante que o pool de conexões será fechado e o programa não ficará "travado".
         await pool.end();
         console.log("Conexão com o banco de dados encerrada.");
     }
 }
 
-// --- 5. Chama a função principal para iniciar o processo ---
+// --- 6. Chamada da Função ---
+// Inicia todo o processo
 inserirDados();
