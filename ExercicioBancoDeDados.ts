@@ -1,9 +1,10 @@
-// Importa as bibliotecas necessárias
+//Importa as bibliotecas necessárias
 import { Pool } from 'pg';
 import * as readlineSync from 'readline-sync';
 
 // --- 1. Configuração da Conexão com o Banco de Dados ---
 // Usamos os dados da sua imagem do Docker
+// Lembre-se que este é um exemplo de aulas - NUNCA DEIXE O USUÁRIO E SENHA CHUMBADO NO CODIGO NO MUNDO REAL
 const dbConfig = {
     user: 'aluno',
     host: 'localhost', // Como o Docker está expondo a porta, usamos localhost
